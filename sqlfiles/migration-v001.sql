@@ -1,8 +1,6 @@
-CREATE DATABASE ynov_ci;
-USE ynov_ci;
-CREATE TABLE utilisateur
+CREATE TABLE IF NOT EXISTS utilisateur
 (
-    id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+    id SERIAL PRIMARY KEY,
     nom VARCHAR(100),
     prenom VARCHAR(100),
     email VARCHAR(255),
@@ -11,4 +9,3 @@ CREATE TABLE utilisateur
     ville VARCHAR(255),
     code_postal VARCHAR(5)
 );
-DESCRIBE utilisateur;
