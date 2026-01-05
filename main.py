@@ -25,10 +25,10 @@ conn = psycopg2.connect(
 @app.get('/')
 async def get_version():
     cur = conn.cursor()
-    cur.execute("SELECT version();")
-    row = cur.fetchone()
-    print(row[0])
-    return {"version": row[0]}
-
+    cur.execute("UPDATE students SET views = views + 1;")
+    cur.execute("SELECT nom, promo, views FROM students ORDER BY id;")
+    rows = cur.fetchall()
+    conn.commit()
+    return [{"nom": r[0], "promo": r[1], "views": r[2]} for r in rows]
 
 
