@@ -2,6 +2,7 @@ import psycopg2
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import redis
 
 app = FastAPI()
 origins= ["*"]
@@ -22,13 +23,17 @@ conn = psycopg2.connect(
     database=os.getenv("POSTGRES_DB", "ynov_ci")
 )
 
+rdb = redis.Redis(
+    host=os.getenv("REDIS_HOST", "redis"),
+    port=int(os.getenv("REDIS_PORT", "6379")),
+    decode_responses=True
+)
+
 @app.get('/')
 async def get_version():
     cur = conn.cursor()
-    cur.execute("UPDATE students SET views = views + 1;")
-    cur.execute("SELECT nom, promo, views FROM students ORDER BY id;")
+    cur.execute("SELECT nom, promo FROM students ORDER BY id;")
     rows = cur.fetchall()
-    conn.commit()
-    return [{"nom": r[0], "promo": r[1], "views": r[2]} for r in rows]
-
+    views = rdb.incr("students:views")
+    return [{"nom": r[0], "promo": r[1], "views": views} for r in rows]
 
