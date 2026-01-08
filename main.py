@@ -34,6 +34,8 @@ async def get_version():
     cur = conn.cursor()
     cur.execute("SELECT nom, promo FROM students ORDER BY id;")
     rows = cur.fetchall()
-    views = rdb.incr("students:views")
-    return [{"nom": r[0], "promo": r[1], "views": views} for r in rows]
-
+    try:
+        views = rdb.incr("students:views")
+        return [{"nom": r[0], "promo": r[1], "views": views} for r in rows]
+    except redis.RedisError:
+        return [{"nom": r[0], "promo": r[1], "views": "null"} for r in rows]
