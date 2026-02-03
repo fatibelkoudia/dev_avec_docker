@@ -79,7 +79,7 @@ jobs:
           response=$(curl -s http://localhost:8000/)
           echo "API Response: $response"
 
-      # Nettoyage - Arrêt et suppression du conteneur
+      # Nettoyage : Arrêt et suppression du conteneur
       - name: Cleanup
         if: always()
         run: |
