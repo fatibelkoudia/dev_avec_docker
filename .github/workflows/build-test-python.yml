@@ -1,0 +1,83 @@
+name: Build and Test Python API
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci-password
+      POSTGRES_DB: ynov_ci
+      POSTGRES_USER: postgres
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build API image
+        run: |
+          docker compose build api
+
+      - name: Start dependencies
+        run: |
+          docker compose up -d db redis
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do
+            if docker compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
+              echo "✅ Postgres is ready"
+              exit 0
+            fi
+            echo "⏳ Waiting for Postgres ($i/30)..."
+            sleep 2
+          done
+          echo "❌ Postgres did not become ready"
+          docker compose logs db
+          exit 1
+
+      - name: Wait for Redis
+        run: |
+          for i in {1..30}; do
+            if docker compose exec -T redis redis-cli ping 2>/dev/null | grep -q "PONG"; then
+              echo "✅ Redis is ready"
+              exit 0
+            fi
+            echo "⏳ Waiting for Redis ($i/30)..."
+            sleep 2
+          done
+          echo "❌ Redis did not become ready"
+          docker compose logs redis
+          exit 1
+
+      - name: Start API
+        run: |
+          docker compose up -d api
+
+      - name: Smoke test (HTTP)
+        run: |
+          for i in {1..20}; do
+            if curl -fsS http://localhost:8000/ >/dev/null; then
+              echo "✅ API is responding"
+              break
+            fi
+            echo "⏳ Waiting for API ($i/20)..."
+            sleep 3
+          done
+
+          echo "API response (first 200 chars):"
+          curl -fsS http://localhost:8000/ | head -c 200 || {
+            echo "❌ API did not respond"
+            docker compose logs api
+            exit 1
+          }
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose down -v --remove-orphans
