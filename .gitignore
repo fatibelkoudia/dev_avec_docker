@@ -1,3 +1,7 @@
 .DS_Store
 .env
 corrections/*
+.terraform/
+*.tfstate
+*.pem
+.terraform.lock.hcl
