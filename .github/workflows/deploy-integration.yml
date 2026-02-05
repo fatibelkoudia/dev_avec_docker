@@ -1,0 +1,57 @@
+name: Deploy Integration
+
+on:
+  workflow_run:
+    workflows: ["Publish to GHCR"]
+    types:
+      - completed
+
+jobs:
+  integration_test:
+    runs-on: ubuntu-latest
+    # Condition de succès du workflow précédent
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      # 1. Récupération du code (nécessaire pour avoir le docker-compose.yml)
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      # 2. Login GHCR (Pour avoir le droit de PULL l'image privée)
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 3. Démarrage de la stack
+      - name: Start Stack with GHCR Image
+        env:
+          # ATTENTION : Mettre à jour avec le bon nom d'image
+          API_IMAGE: ghcr.io/valentinsaraiva-mmi/devavecdocker/python-api:latest
+          POSTGRES_DB: mydb
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ynovpwd
+
+        run: |
+          echo "Démarrage avec l'image : $API_IMAGE"
+          docker compose up -d
+
+      - name: Wait for services
+        run: |
+          sleep 10
+          docker ps
+
+      # 4. Vérification que Nginx proxy bien vers Python
+      - name: Verify Nginx Proxy
+        run: |
+          docker compose ps
+          curl -f http://localhost:8080/ || (docker compose logs && exit 1)
+
+      # 5.Nettoyage
+      - name: Cleanup
+        if: always()
+        run: docker compose down
